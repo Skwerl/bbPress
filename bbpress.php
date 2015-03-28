@@ -12,10 +12,10 @@
  */
 
 /**
- * Plugin Name: bbPress
+ * Plugin Name: bbPress (Patched)
  * Plugin URI:  http://bbpress.org
  * Description: bbPress is forum software with a twist from the creators of WordPress.
- * Author:      The bbPress Community
+ * Author:      The bbPress Community, Skwerl
  * Author URI:  http://bbpress.org
  * Version:     2.5.6
  * Text Domain: bbpress
