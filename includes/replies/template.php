@@ -142,6 +142,22 @@ function bbp_has_replies( $args = '' ) {
 		's'                   => $default_reply_search,      // Maybe search
 	);
 
+	// Suppress threaded replies for now...
+	if (bbp_thread_replies()) {
+		$default['meta_query'] = array('relation' => 'OR',
+			array(
+				'key' => '_bbp_reply_to',
+				'compare' => 'NOT EXISTS',
+				'value'   => '0'
+			),
+			array(
+				'key' => '_bbp_reply_to',
+				'compare' => '=',
+				'value'   => '0'
+			)
+		);
+	}
+
 	// What are the default allowed statuses (based on user caps)
 	if ( bbp_get_view_all() ) {
 
@@ -173,9 +189,6 @@ function bbp_has_replies( $args = '' ) {
 
 	// Set posts_per_page value if replies are threaded
 	$replies_per_page = $r['posts_per_page'];
-	if ( true === $r['hierarchical'] ) {
-		$r['posts_per_page'] = -1;
-	}
 
 	// Get bbPress
 	$bbp = bbpress();
@@ -247,10 +260,7 @@ function bbp_has_replies( $args = '' ) {
 		}
 
 		// Figure out total pages
-		if ( true === $r['hierarchical'] ) {
-			$walker      = new BBP_Walker_Reply;
-			$total_pages = ceil( (int) $walker->get_number_of_root_elements( $bbp->reply_query->posts ) / (int) $replies_per_page );
-		} else {
+
 			$total_pages = ceil( (int) $bbp->reply_query->found_posts / (int) $replies_per_page );
 
 			// Add pagination to query object
@@ -271,7 +281,7 @@ function bbp_has_replies( $args = '' ) {
 			} else {
 				$bbp->reply_query->pagination_links = str_replace( '&#038;paged=1', '', $bbp->reply_query->pagination_links );
 			}
-		}
+
 	}
 
 	// Return object
@@ -2334,9 +2344,9 @@ function bbp_topic_pagination_count() {
 
 		// We are threading replies
 		if ( bbp_thread_replies() && bbp_is_single_topic() ) {
-			return;
+
 			$walker  = new BBP_Walker_Reply;
-			$threads = (int) $walker->get_number_of_root_elements( $bbp->reply_query->posts );
+			$threads = (int) $walker->get_number_of_root_elements( $bbp->reply_query->posts ) + 1; // Not sure where this OB1 error comes from...
 
 			// Adjust for topic
 			$threads--;
@@ -2541,3 +2551,5 @@ function bbp_form_reply_edit_reason() {
 
 		return apply_filters( 'bbp_get_form_reply_edit_reason', esc_attr( $reply_edit_reason ) );
 	}
+
+?>

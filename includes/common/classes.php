@@ -353,6 +353,32 @@ class BBP_Walker_Reply extends Walker {
 		$id_field = $this->db_fields['id'];
 		$id       = $element->$id_field;
 
+		// Now fetch child replies for each reply as they're listed...
+		
+		$reply_search = !empty($_REQUEST['rs']) ? $_REQUEST['rs'] : false;
+		$post_type = (bbp_is_single_topic() && bbp_show_lead_topic()) ? bbp_get_reply_post_type() : array(bbp_get_topic_post_type(), bbp_get_reply_post_type());
+
+		$child_args = array(
+			'post_type'           => $post_type,
+			'post_parent'         => bbp_get_topic_id(),
+			'posts_per_page'      => '-1',
+			'orderby'             => 'date',
+			'order'               => 'ASC',
+			'hierarchical'        => true,
+			'ignore_sticky_posts' => true,
+			's'                   => $reply_search,
+			'meta_query'          => array(array(
+										'key' => '_bbp_reply_to',
+										'compare' => '=',
+										'value'   => $id
+									))
+		);
+
+		$parsed_args = bbp_parse_args('', $child_args, 'has_replies');
+		$child_posts = new WP_Query($parsed_args);
+		$children_elements = array($id => $child_posts->posts);
+		wp_reset_postdata();		
+
 		// Display element
 		parent::display_element( $element, $children_elements, $max_depth, $depth, $args, $output );
 
@@ -415,3 +441,5 @@ class BBP_Walker_Reply extends Walker {
 	}
 }
 endif; // class_exists check
+
+?>
