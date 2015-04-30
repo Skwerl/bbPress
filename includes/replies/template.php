@@ -488,16 +488,10 @@ function bbp_reply_url( $reply_id = 0 ) {
 		$reply_id   = bbp_get_reply_id      ( $reply_id );
 		$topic_id   = bbp_get_reply_topic_id( $reply_id );
 
-		// Hierarchical reply page
-		if ( bbp_thread_replies() ) {
-			$reply_page = 1;
-
-		// Standard reply page
-		} else {
-			$reply_page = ceil( (int) bbp_get_reply_position( $reply_id, $topic_id ) / (int) bbp_get_replies_per_page() );
-		}
+		$reply_page = ceil( (int) bbp_get_reply_position( $reply_id, $topic_id ) / (int) bbp_get_replies_per_page() );
 
 		$reply_hash = '#post-' . $reply_id;
+
 		$topic_link = bbp_get_topic_permalink( $topic_id, $redirect_to );
 		$topic_url  = remove_query_arg( 'view', $topic_link );
 
@@ -1751,31 +1745,17 @@ function bbp_reply_position( $reply_id = 0, $topic_id = 0 ) {
 		$reply_id       = bbp_get_reply_id( $reply_id );
 		$reply_position = get_post_field( 'menu_order', $reply_id );
 
-		// Reply doesn't have a position so get the raw value
-		if ( empty( $reply_position ) ) {
-			$topic_id = !empty( $topic_id ) ? bbp_get_topic_id( $topic_id ) : bbp_get_reply_topic_id( $reply_id );
-
-			// Post is not the topic
-			if ( $reply_id !== $topic_id ) {
-				$reply_position = bbp_get_reply_position_raw( $reply_id, $topic_id );
-
-				// Update the reply position in the posts table so we'll never have
-				// to hit the DB again.
-				if ( !empty( $reply_position ) ) {
-					bbp_update_reply_position( $reply_id, $reply_position );
-				}
-
-			// Topic's position is always 0
-			} else {
-				$reply_position = 0;
+		if (empty($reply_position)) {
+			$reply_position = bbp_get_reply_position_raw( $reply_id, $topic_id );
+			// Bump the position by one if the lead topic isn't in the replies loop
+			if (!bbp_show_lead_topic()) {
+				$reply_position++;
 			}
+			bbp_update_reply_position($reply_id, $reply_position);
 		}
 
-		// Bump the position by one if the lead topic is in the replies loop
-		if ( ! bbp_show_lead_topic() )
-			$reply_position++;
-
 		return (int) apply_filters( 'bbp_get_reply_position', $reply_position, $reply_id, $topic_id );
+
 	}
 
 /** Reply Admin Links *********************************************************/

@@ -346,14 +346,14 @@ function bbp_new_reply_handler( $action = '' ) {
 	// Add the content of the form to $reply_data as an array
 	// Just in time manipulation of reply data before being created
 	$reply_data = apply_filters( 'bbp_new_reply_pre_insert', array(
-		'post_author'    => $reply_author,
-		'post_title'     => $reply_title,
-		'post_content'   => $reply_content,
-		'post_status'    => $reply_status,
 		'post_parent'    => $topic_id,
+		'post_status'    => $reply_status,
 		'post_type'      => bbp_get_reply_post_type(),
+		'post_author'    => $reply_author,
+		'post_content'   => $reply_content,
+		'post_title'     => $reply_title,
+		'menu_order'     => 0,
 		'comment_status' => 'closed',
-		'menu_order'     => bbp_get_topic_reply_count( $topic_id, false ) + 1
 	) );
 
 	// Insert reply
@@ -1299,7 +1299,7 @@ function bbp_move_reply_handler( $action = '' ) {
 					'post_title'  => sprintf( __( 'Reply To: %s', 'bbpress' ), $destination_topic->post_title ),
 					'post_name'   => false, // will be automatically generated
 					'post_parent' => $destination_topic->ID,
-					'menu_order'  => $reply_position,
+					'menu_order'  => 0, // will be automatically regenerated
 					'guid'        => ''
 				) );
 
@@ -2163,24 +2163,39 @@ function bbp_get_reply_position_raw( $reply_id = 0, $topic_id = 0 ) {
 	$topic_id       = !empty( $topic_id ) ? bbp_get_topic_id( $topic_id ) : bbp_get_reply_topic_id( $reply_id );
 	$reply_position = 0;
 
-	// If reply is actually the first post in a topic, return 0
-	if ( $reply_id !== $topic_id ) {
+	if ($reply_id != $topic_id) {
+		$top_level_replies = array();
+		$replies_args = array(
+			'post_type' => bbp_get_reply_post_type(),
+			'post_parent' => $topic_id,
+			'posts_per_page' => -1,
+			'orderby' => 'ID',
+			'meta_query' => array('relation' => 'OR',
+				array(
+					'key' => '_bbp_reply_to',
+					'compare' => 'NOT EXISTS',
+					'value'   => '0'
+				),
+				array(
+					'key' => '_bbp_reply_to',
+					'compare' => '=',
+					'value'   => '0'
+				)
+		));
+		$top_level_reply_posts = get_posts($replies_args);
+		foreach ($top_level_reply_posts as $top_level_reply_post) {
+			array_unshift($top_level_replies, $top_level_reply_post->ID);
+		}
+		array_unshift($top_level_replies, $topic_id);
 
-		// Make sure the topic has replies before running another query
-		$reply_count = bbp_get_topic_reply_count( $topic_id, false );
-		if ( !empty( $reply_count ) ) {
-
-			// Get reply id's
-			$topic_replies = bbp_get_all_child_ids( $topic_id, bbp_get_reply_post_type() );
-			if ( !empty( $topic_replies ) ) {
-
-				// Reverse replies array and search for current reply position
-				$topic_replies  = array_reverse( $topic_replies );
-				$reply_position = array_search( (string) $reply_id, $topic_replies );
-
-				// Bump the position to compensate for the lead topic post
-				$reply_position++;
-			}
+		$reply_position = array_search($reply_id, $top_level_replies);
+		if (empty($reply_position)) {
+			$next_up = $reply_id;
+			do {
+				$reply_to_id = get_post_meta($next_up, '_bbp_reply_to', true);
+				$reply_position = array_search($reply_to_id, $top_level_replies);
+				$next_up = $reply_to_id;
+			} while ($reply_position == false);		
 		}
 	}
 
@@ -2216,7 +2231,7 @@ function bbp_list_replies( $args = array() ) {
 	$walker = new BBP_Walker_Reply;
 	$walker->paged_walk( bbpress()->reply_query->posts, $r['max_depth'], $r['page'], $r['per_page'], $r );
 
-	bbpress()->max_num_pages            = $walker->max_pages;
+	bbpress()->max_num_pages = $walker->max_pages;
 	bbpress()->reply_query->in_the_loop = false;
 }
 
@@ -2248,3 +2263,5 @@ function bbp_validate_reply_to( $reply_to = 0, $reply_id = 0 ) {
 
 	return (int) $reply_to;
 }
+
+?>
