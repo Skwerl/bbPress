@@ -272,7 +272,21 @@ function bbp_new_reply_handler( $action = '' ) {
 		$reply_content = $_POST['bbp_reply_content'];
 
 	// Filter and sanitize
-	$reply_content = apply_filters( 'bbp_new_reply_pre_content', $reply_content );
+	$filter_content = true;
+	if (!empty($_POST['tinyMCE_format'])) {
+		switch(strtolower($_POST['tinyMCE_format'])) {
+			case 'raw':
+			case 'html':
+				$filter_content = false;
+				break;
+			case 'text':
+			default:
+				$filter_content = true;
+		}
+	}
+	if ($filter_content) {
+		$reply_content = apply_filters( 'bbp_new_reply_pre_content', $reply_content );
+	}
 
 	// No reply content
 	if ( empty( $reply_content ) )
